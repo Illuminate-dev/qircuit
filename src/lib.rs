@@ -1,3 +1,6 @@
+mod gates;
 mod math;
 mod qstate;
-mod qubit;
+
+pub use gates::Gate;
+pub use qstate::QState;
