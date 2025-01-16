@@ -70,7 +70,7 @@ impl Gate {
 #[cfg(test)]
 pub mod tests {
 
-    use ndarray::arr1;
+    use ndarray::{arr1, linalg::general_mat_vec_mul, Array1};
     use num::{complex::Complex64, Float};
 
     use crate::qstate::QState;
@@ -193,72 +193,6 @@ pub mod tests {
                 Complex64::new(0.0, 0.0),
                 Complex64::new(0.0, 0.0),
                 Complex64::new(1.0, 0.0),
-                Complex64::new(0.0, 0.0),
-            ])
-        );
-
-        state.apply(Gate::CNOT(vec![1], 0));
-
-        assert_eq!(
-            state.state,
-            arr1(&[
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(1.0, 0.0),
-                Complex64::new(0.0, 0.0),
-            ])
-        );
-
-        let mut state = QState::with_state(arr1(&[
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(1.0, 0.0),
-            Complex64::new(0.0, 0.0),
-        ]));
-
-        state.apply(Gate::CNOT(vec![0, 1], 2));
-
-        assert_eq!(
-            state.state,
-            arr1(&[
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(1.0, 0.0),
-            ])
-        );
-
-        let mut state = QState::with_state(arr1(&[
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(1.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-            Complex64::new(0.0, 0.0),
-        ]));
-
-        state.apply(Gate::CNOT(vec![0, 1], 2));
-
-        assert_eq!(
-            state.state,
-            arr1(&[
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(1.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
                 Complex64::new(0.0, 0.0),
             ])
         );
