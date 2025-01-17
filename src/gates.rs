@@ -93,12 +93,19 @@ impl Gate {
 #[cfg(test)]
 pub mod tests {
 
-    use ndarray::{arr1, linalg::general_mat_vec_mul, Array1};
+    use ndarray::arr1;
     use num::{complex::Complex64, Float};
 
     use crate::qstate::QState;
 
     use super::*;
+
+    fn round_state(state: &mut QState) {
+        state
+            .state
+            .iter_mut()
+            .for_each(|x| x.re = (x.re * 100.0).round() / 100.0);
+    }
 
     #[test]
     fn test_create_x() {
@@ -183,10 +190,7 @@ pub mod tests {
         ]));
 
         state.apply(Gate::H(1));
-        state
-            .state
-            .iter_mut()
-            .for_each(|x| x.re = (x.re * 100.0).round() / 100.0);
+        round_state(&mut state);
 
         assert_eq!(
             state.state,
@@ -286,7 +290,6 @@ pub mod tests {
             ])
         );
     }
-
     #[test]
     fn test_cnot_creation() {
         let m = Gate::CNOT(vec![0], 1).to_matrix(2);
@@ -368,6 +371,30 @@ pub mod tests {
                 Complex64::new(0.0, 0.0),
                 Complex64::new(0.0, 0.0),
                 Complex64::new(ONE_SQRT_2, 0.0)
+            ])
+        );
+
+        let mut state = QState::with_state(arr1(&[
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+        ]));
+
+        state.apply(Gate::combined_gate(
+            vec![Gate::H(0), Gate::X(1), Gate::H(1), Gate::CNOT(vec![0], 1)],
+            2,
+        ));
+
+        round_state(&mut state);
+
+        assert_eq!(
+            state.state,
+            &arr1(&[
+                Complex64::new(0.5, 0.0),
+                Complex64::new(-0.5, 0.0),
+                Complex64::new(-0.5, 0.0),
+                Complex64::new(0.5, 0.0)
             ])
         );
     }
