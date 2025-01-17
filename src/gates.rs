@@ -3,8 +3,10 @@ use std::f64::consts::SQRT_2;
 
 use ndarray::{arr2, linalg::kron, Array2};
 
+const ONE_SQRT_2: f64 = 1.0 / SQRT_2;
+
 const X_MATRIX: [[f64; 2]; 2] = [[0.0, 1.0], [1.0, 0.0]];
-const H_MATRIX: [[f64; 2]; 2] = [[1.0 / SQRT_2, 1.0 / SQRT_2], [1.0 / SQRT_2, -1.0 / SQRT_2]];
+const H_MATRIX: [[f64; 2]; 2] = [[ONE_SQRT_2, ONE_SQRT_2], [ONE_SQRT_2, -ONE_SQRT_2]];
 const I_MATRIX: [[f64; 2]; 2] = [[1.0, 0.0], [0.0, 1.0]];
 const PROJECTION_1_MATRIX: [[f64; 2]; 2] = [[0.0, 0.0], [0.0, 1.0]];
 
@@ -14,10 +16,12 @@ pub enum Gate {
     X(usize),
     /// H gate on the ith qubit
     H(usize),
-    /// CNOT gate with a vec of controls and a target qubit
+    /// CNOT gate with a vec of controls and a target qubit.
     CNOT(Vec<usize>, usize),
     /// I gate is same anywhere
     I,
+    /// Custom gate with the following matrix
+    Custom(Array2<f64>),
 }
 
 impl Gate {
@@ -34,6 +38,7 @@ impl Gate {
                 &proj_1_all.dot(&x_all) + &proj_1_inverse.dot(&i_all)
             }
             Gate::I => Self::build_matrix(0, n, &I_MATRIX),
+            Gate::Custom(m) => m.clone(),
         }
     }
 
@@ -70,12 +75,25 @@ impl Gate {
         }
         m
     }
+
+    /// contructs a combined gate from a list of gates, applying matrix multiplication in order
+    /// from left to right. This means that the first gate in the list is the first to be applied
+    fn combined_gate(gates: Vec<Gate>, n: usize) -> Gate {
+        assert!(!gates.is_empty());
+
+        // apply the gates in reverse order
+        let mut m = gates[gates.len() - 1].to_matrix(n);
+        for gate in gates.iter().rev().skip(1) {
+            m = m.dot(&gate.to_matrix(n));
+        }
+        Self::Custom(m)
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
 
-    use ndarray::arr1;
+    use ndarray::{arr1, linalg::general_mat_vec_mul, Array1};
     use num::{complex::Complex64, Float};
 
     use crate::qstate::QState;
@@ -133,10 +151,10 @@ pub mod tests {
         assert_eq!(
             Gate::H(0).to_matrix(2),
             arr2(&[
-                [1.0 / SQRT_2, 0.0, 1.0 / SQRT_2, 0.0],
-                [0.0, 1.0 / SQRT_2, 0.0, 1.0 / SQRT_2],
-                [1.0 / SQRT_2, 0.0, -1.0 / SQRT_2, 0.0],
-                [0.0, 1.0 / SQRT_2, 0.0, -1.0 / SQRT_2]
+                [ONE_SQRT_2, 0.0, ONE_SQRT_2, 0.0],
+                [0.0, ONE_SQRT_2, 0.0, ONE_SQRT_2],
+                [ONE_SQRT_2, 0.0, -ONE_SQRT_2, 0.0],
+                [0.0, ONE_SQRT_2, 0.0, -ONE_SQRT_2]
             ])
         );
     }
@@ -151,8 +169,8 @@ pub mod tests {
         assert_eq!(
             state.state,
             arr1(&[
-                Complex64::new(1.0 / SQRT_2, 0.0),
-                Complex64::new(1.0 / SQRT_2, 0.0)
+                Complex64::new(ONE_SQRT_2, 0.0),
+                Complex64::new(ONE_SQRT_2, 0.0)
             ])
         );
 
@@ -279,6 +297,77 @@ pub mod tests {
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
                 [0.0, 0.0, 1.0, 0.0]
+            ])
+        );
+    }
+
+    #[test]
+    fn test_combined_creation() {
+        let m = Gate::combined_gate(vec![Gate::X(0), Gate::H(1)], 2).to_matrix(2);
+        assert_eq!(
+            m,
+            arr2(&[
+                [0.0, 0.0, ONE_SQRT_2, ONE_SQRT_2],
+                [0.0, 0.0, ONE_SQRT_2, -ONE_SQRT_2],
+                [ONE_SQRT_2, ONE_SQRT_2, 0.0, 0.0],
+                [ONE_SQRT_2, -ONE_SQRT_2, 0.0, 0.0]
+            ])
+        );
+
+        let m = Gate::combined_gate(vec![Gate::H(0), Gate::CNOT(vec![0], 1)], 2).to_matrix(2);
+
+        assert_eq!(
+            m,
+            arr2(&[
+                [ONE_SQRT_2, 0.0, ONE_SQRT_2, 0.0],
+                [0.0, ONE_SQRT_2, 0.0, ONE_SQRT_2],
+                [0.0, ONE_SQRT_2, 0.0, -ONE_SQRT_2],
+                [ONE_SQRT_2, 0.0, -ONE_SQRT_2, 0.0]
+            ])
+        );
+    }
+
+    #[test]
+    fn test_combined() {
+        let mut state = QState::with_state(arr1(&[
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(1.0, 0.0),
+        ]));
+
+        let m = Gate::combined_gate(vec![Gate::X(0), Gate::H(1)], 2);
+
+        state.apply(m);
+
+        assert_eq!(
+            state.state,
+            &arr1(&[
+                Complex64::new(ONE_SQRT_2, 0.0),
+                Complex64::new(-ONE_SQRT_2, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0)
+            ])
+        );
+
+        let mut state = QState::with_state(arr1(&[
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+        ]));
+
+        let m = Gate::combined_gate(vec![Gate::H(0), Gate::CNOT(vec![0], 1)], 2);
+
+        state.apply(m);
+
+        assert_eq!(
+            state.state,
+            &arr1(&[
+                Complex64::new(ONE_SQRT_2, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(ONE_SQRT_2, 0.0)
             ])
         );
     }
