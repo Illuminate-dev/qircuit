@@ -8,10 +8,15 @@ const H_MATRIX: [[f64; 2]; 2] = [[1.0 / SQRT_2, 1.0 / SQRT_2], [1.0 / SQRT_2, -1
 const I_MATRIX: [[f64; 2]; 2] = [[1.0, 0.0], [0.0, 1.0]];
 const PROJECTION_1_MATRIX: [[f64; 2]; 2] = [[0.0, 0.0], [0.0, 1.0]];
 
+/// A quantum gate
 pub enum Gate {
+    /// X gate on the ith qubit
     X(usize),
+    /// H gate on the ith qubit
     H(usize),
+    /// CNOT gate with a vec of controls and a target qubit
     CNOT(Vec<usize>, usize),
+    /// I gate is same anywhere
     I,
 }
 
