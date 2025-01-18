@@ -26,7 +26,7 @@ impl QState {
         let mut out = Array1::zeros(self.state.len());
         general_mat_vec_mul(
             1.0.into(),
-            &gate.to_matrix(self.n).map(Complex64::from),
+            &gate.to_matrix(self.n),
             &self.state,
             1.0.into(),
             &mut out,

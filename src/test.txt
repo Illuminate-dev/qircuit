@@ -11,7 +11,6 @@ const Y_MATRIX: [[Complex64; 2]; 2] = [
     [Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)],
     [Complex64::new(0.0, 1.0), Complex64::new(0.0, 0.0)],
 ];
-const Z_MATRIX: [[f64; 2]; 2] = [[1.0, 0.0], [0.0, -1.0]];
 
 const H_MATRIX: [[f64; 2]; 2] = [[ONE_SQRT_2, ONE_SQRT_2], [ONE_SQRT_2, -ONE_SQRT_2]];
 const I_MATRIX: [[f64; 2]; 2] = [[1.0, 0.0], [0.0, 1.0]];
@@ -23,8 +22,6 @@ pub enum Gate {
     X(usize),
     /// Pauli Y gate on the ith qubit
     Y(usize),
-    /// Pauli Z gate on the ith qubit
-    Z(usize),
     /// H gate on the ith qubit
     H(usize),
     /// CNOT gate with a vec of controls and a target qubit.
@@ -40,7 +37,6 @@ impl Gate {
         match self {
             Gate::X(i) => Self::build_matrix(*i, n, &X_MATRIX),
             Gate::Y(i) => Self::build_matrix_complex(*i, n, &Y_MATRIX),
-            Gate::Z(i) => Self::build_matrix(*i, n, &Z_MATRIX),
             Gate::H(i) => Self::build_matrix(*i, n, &H_MATRIX),
             Gate::CNOT(controls, target) => {
                 let proj_1_all = Self::build_matrix_many(controls, n, &PROJECTION_1_MATRIX);
@@ -135,139 +131,6 @@ pub mod tests {
             .state
             .iter_mut()
             .for_each(|x| x.re = (x.re * 100.0).round() / 100.0);
-    }
-
-    #[test]
-    fn test_create_y() {
-        assert_eq!(
-            Gate::Y(0).to_matrix(2),
-            arr2(&[
-                [
-                    Complex64::from(0.0),
-                    Complex64::from(0.0),
-                    Complex64::new(0.0, -1.0),
-                    Complex64::from(0.0)
-                ],
-                [
-                    Complex64::from(0.0),
-                    Complex64::from(0.0),
-                    Complex64::from(0.0),
-                    Complex64::new(0.0, -1.0)
-                ],
-                [
-                    Complex64::new(0.0, 1.0),
-                    Complex64::from(0.0),
-                    Complex64::from(0.0),
-                    Complex64::from(0.0)
-                ],
-                [
-                    Complex64::from(0.0),
-                    Complex64::new(0.0, 1.0),
-                    Complex64::from(0.0),
-                    Complex64::from(0.0)
-                ]
-            ])
-        );
-    }
-
-    #[test]
-    fn test_apply_y() {
-        // |0> to i|1>
-        let mut state =
-            QState::with_state(arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]));
-        let gate = Gate::Y(0);
-        state.apply(gate);
-        assert_eq!(
-            state.state,
-            arr1(&[Complex64::new(0.0, 0.0), Complex64::new(0.0, 1.0)])
-        );
-
-        //  |1> to -i|0>
-        let mut state =
-            QState::with_state(arr1(&[Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)]));
-        let gate = Gate::Y(0);
-        state.apply(gate);
-        assert_eq!(
-            state.state,
-            arr1(&[Complex64::new(0.0, -1.0), Complex64::new(0.0, 0.0)])
-        );
-
-        // 1/sqrt(2) * |01> + 1/sqrt(2) * |10> to -i/sqrt(2) * |00> + i/sqrt(2) * |11>
-        let mut state = QState::with_state(arr1(&[
-            Complex64::new(0.0, 0.0),
-            Complex64::new(1.0 / 2.0.sqrt(), 0.0),
-            Complex64::new(1.0 / 2.0.sqrt(), 0.0),
-            Complex64::new(0.0, 0.0),
-        ]));
-
-        state.apply(Gate::Y(1));
-        round_state(&mut state);
-        assert_eq!(
-            state.state,
-            arr1(&[
-                Complex64::new(0.0, -1.0 / 2.0.sqrt()),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 1.0 / 2.0.sqrt()),
-            ])
-        );
-    }
-
-    #[test]
-    fn test_create_z() {
-        assert_eq!(
-            Gate::Z(0).to_matrix(2),
-            arr2(&[
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, -1.0, 0.0],
-                [0.0, 0.0, 0.0, -1.0]
-            ])
-            .map(Complex64::from)
-        );
-    }
-
-    #[test]
-    fn test_apply_z() {
-        // |0> to |0>
-        let mut state =
-            QState::with_state(arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]));
-        let gate = Gate::Z(0);
-        state.apply(gate);
-        assert_eq!(
-            state.state,
-            arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)])
-        );
-
-        // |1> to -|1>
-        let mut state =
-            QState::with_state(arr1(&[Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)]));
-        let gate = Gate::Z(0);
-        state.apply(gate);
-        assert_eq!(
-            state.state,
-            arr1(&[Complex64::new(0.0, 0.0), Complex64::new(-1.0, 0.0)])
-        );
-
-        // 1/sqrt(2) * |01> + 1/sqrt(2) * |10> to -1/sqrt(2) * |01> + 1/sqrt(2) * |10>
-        let mut state = QState::with_state(arr1(&[
-            Complex64::new(0.0, 0.0),
-            Complex64::new(1.0 / 2.0.sqrt(), 0.0),
-            Complex64::new(1.0 / 2.0.sqrt(), 0.0),
-            Complex64::new(0.0, 0.0),
-        ]));
-
-        state.apply(Gate::Z(1));
-
-        assert_eq!(
-            state.state,
-            arr1(&[
-                Complex64::new(0.0, 0.0),
-                Complex64::new(-1.0 / 2.0.sqrt(), 0.0),
-                Complex64::new(1.0 / 2.0.sqrt(), 0.0),
-                Complex64::new(0.0, 0.0),
-            ])
-        );
     }
 
     #[test]
