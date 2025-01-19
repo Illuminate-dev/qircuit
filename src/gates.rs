@@ -141,19 +141,13 @@ impl Gate {
 #[cfg(test)]
 pub mod tests {
 
+    use crate::round_state;
     use ndarray::arr1;
     use num::{complex::Complex64, Float};
 
     use crate::qstate::QState;
 
     use super::*;
-
-    fn round_state(state: &mut QState) {
-        state
-            .state
-            .iter_mut()
-            .for_each(|x| x.re = (x.re * 100.0).round() / 100.0);
-    }
 
     #[test]
     fn test_create_y() {
