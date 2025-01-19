@@ -31,6 +31,8 @@ pub enum Gate {
     CNOT(Vec<usize>, usize),
     /// I gate is same anywhere
     I,
+    /// Classical or gate on quibit .0 and .1 with target qubit .2
+    OR(usize, usize, usize),
     /// Custom gate with the following matrix
     Custom(Array2<Complex64>),
 }
@@ -51,6 +53,22 @@ impl Gate {
                 &proj_1_all.dot(&x_all) + &proj_1_inverse.dot(&i_all)
             }
             Gate::I => Self::build_matrix(0, n, &I_MATRIX),
+            Gate::OR(a, b, i) => {
+                match Self::combined_gate(
+                    vec![
+                        Gate::X(*a),
+                        Gate::X(*b),
+                        Gate::CNOT(vec![*a, *b], *i),
+                        Gate::X(*i),
+                        Gate::X(*a),
+                        Gate::X(*b),
+                    ],
+                    n,
+                ) {
+                    Gate::Custom(m) => m,
+                    _ => unreachable!(),
+                }
+            }
             Gate::Custom(m) => m.clone(),
         }
     }
@@ -564,6 +582,136 @@ pub mod tests {
                 Complex64::new(-0.5, 0.0),
                 Complex64::new(0.5, 0.0)
             ])
+        );
+    }
+
+    #[test]
+    fn test_apply_or() {
+        // |000> -> |000>
+        let mut state = QState::with_state(arr1(&[
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+        ]));
+
+        state.apply(Gate::OR(0, 1, 2));
+        assert_eq!(
+            state.state,
+            arr1(&[
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+            ])
+        );
+
+        // |010> -> |011>
+        let mut state = QState::with_state(arr1(&[
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+        ]));
+
+        state.apply(Gate::OR(0, 1, 2));
+        assert_eq!(
+            state.state,
+            arr1(&[
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+            ])
+        );
+        // |100> -> |101>
+        let mut state = QState::with_state(arr1(&[
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+        ]));
+
+        state.apply(Gate::OR(0, 1, 2));
+
+        assert_eq!(
+            state.state,
+            arr1(&[
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+            ])
+        );
+        // |110> -> |111>
+        let mut state = QState::with_state(arr1(&[
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+        ]));
+
+        state.apply(Gate::OR(0, 1, 2));
+
+        assert_eq!(
+            state.state,
+            arr1(&[
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(1.0, 0.0),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_or_creation() {
+        let m = Gate::OR(0, 1, 2).to_matrix(3);
+        assert_eq!(
+            m,
+            arr2(&[
+                [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            ])
+            .map(Complex64::from)
         );
     }
 }

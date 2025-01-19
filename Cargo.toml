@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 ndarray = "0.16.1"
 num = "0.4.3"
+rand = "0.8.5"
