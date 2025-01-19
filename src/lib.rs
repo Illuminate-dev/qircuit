@@ -1,5 +1,5 @@
 mod gates;
-mod math;
+// mod math;
 mod qstate;
 
 pub use gates::Gate;

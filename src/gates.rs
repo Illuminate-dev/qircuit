@@ -126,8 +126,10 @@ impl Gate {
 
     /// contructs a combined gate from a list of gates, applying matrix multiplication in order
     /// from left to right. This means that the first gate in the list is the first to be applied
-    fn combined_gate(gates: Vec<Gate>, n: usize) -> Gate {
-        assert!(!gates.is_empty());
+    pub fn combined_gate(gates: Vec<Gate>, n: usize) -> Gate {
+        if gates.is_empty() {
+            return Gate::I;
+        }
 
         // apply the gates in reverse order
         let mut m = gates[gates.len() - 1].to_matrix(n);

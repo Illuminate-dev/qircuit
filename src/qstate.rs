@@ -5,6 +5,8 @@ use rand::Rng;
 use crate::gates::Gate;
 
 /// Struct representing the quantum state of a system
+/// most significant bit is lefmost qubit - big endian
+#[derive(Debug, Clone)]
 pub struct QState {
     /// state of the qubits with length 2^n
     pub state: Array1<Complex64>,
@@ -22,6 +24,12 @@ impl QState {
         assert!(state.len().is_power_of_two());
         let n = (state.len() as f64).log2() as usize;
         Self { state, n }
+    }
+
+    pub fn from_classical(state: u8, n: usize) -> Self {
+        let mut qstate = Array1::zeros(1 << n);
+        qstate[state as usize] = Complex64::new(1.0, 0.0);
+        Self { state: qstate, n }
     }
 
     pub fn apply(&mut self, gate: Gate) {
@@ -83,6 +91,8 @@ impl QState {
 #[cfg(test)]
 mod tests {
 
+    use ndarray::arr1;
+
     use super::*;
     use crate::round_state;
 
@@ -92,6 +102,31 @@ mod tests {
         assert_eq!(qstate.state.len(), 4);
         let qstate = QState::new(4);
         assert_eq!(qstate.state.len(), 16);
+    }
+
+    #[test]
+    fn test_from_classical() {
+        let qstate = QState::from_classical(0, 2);
+        assert_eq!(
+            qstate.state,
+            arr1(&[
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0)
+            ])
+        );
+
+        let qstate = QState::from_classical(1, 2);
+        assert_eq!(
+            qstate.state,
+            arr1(&[
+                Complex64::new(0.0, 0.0),
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0)
+            ])
+        );
     }
 
     #[test]
@@ -172,6 +207,10 @@ mod tests {
             assert!(*count > 150);
             assert!(*count < 350);
         }
+
+        let mut qstate = QState::from_classical(0, 5);
+        let measurement = qstate.measure_all();
+        assert_eq!(measurement, 0);
     }
 
     #[test]
