@@ -18,6 +18,7 @@ const I_MATRIX: [[f64; 2]; 2] = [[1.0, 0.0], [0.0, 1.0]];
 const PROJECTION_1_MATRIX: [[f64; 2]; 2] = [[0.0, 0.0], [0.0, 1.0]];
 
 /// A quantum gate
+#[derive(Debug, Clone)]
 pub enum Gate {
     /// Pauli X gate on the ith qubit
     X(usize),

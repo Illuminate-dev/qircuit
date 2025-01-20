@@ -67,6 +67,10 @@ impl QState {
             }
         }
 
+        if prob_1 > 1.0 {
+            prob_1 = 1.0;
+        }
+
         let out = rng.gen_bool(prob_1);
         let out_prob = if out { prob_1 } else { 1.0 - prob_1 };
 
