@@ -57,5 +57,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgements
 
-- Thanks to [list anyone or any resources you'd like to thank or give credit to].
+- Thanks to [Quantum Country](https://quantum.country).
 - Contributor: [Illuminate-dev](https://github.com/Illuminate-dev)
