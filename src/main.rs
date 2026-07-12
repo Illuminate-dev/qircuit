@@ -12,15 +12,30 @@ use ratatui::{
 use qircuit::{Gate, QState};
 
 const GATES: &[GateDef] = &[
-    GateDef { name: "H", gate: |q| Gate::H(q) },
-    GateDef { name: "X", gate: |q| Gate::X(q) },
-    GateDef { name: "Y", gate: |q| Gate::Y(q) },
-    GateDef { name: "Z", gate: |q| Gate::Z(q) },
+    GateDef {
+        name: "H",
+        gate: |q| Gate::H(q),
+    },
+    GateDef {
+        name: "X",
+        gate: |q| Gate::X(q),
+    },
+    GateDef {
+        name: "Y",
+        gate: |q| Gate::Y(q),
+    },
+    GateDef {
+        name: "Z",
+        gate: |q| Gate::Z(q),
+    },
     GateDef {
         name: "CNOT",
         gate: |q| Gate::CNOT(vec![q], (q + 1) % N_QUBITS),
     },
-    GateDef { name: "Measure", gate: |_| unreachable!() },
+    GateDef {
+        name: "Measure",
+        gate: |_| unreachable!(),
+    },
 ];
 
 const GATE_COLORS: &[Color] = &[
@@ -220,10 +235,7 @@ impl App {
                     Span::styled(bar_filled, Color::Green),
                     Span::styled(bar_empty, Color::DarkGray),
                     Span::raw(format!(" {:>6.3}  ", prob)),
-                    Span::styled(
-                        format!("{:>6.3}{:>+.3}i", amp.re, amp.im),
-                        Color::Yellow,
-                    ),
+                    Span::styled(format!("{:>6.3}{:>+.3}i", amp.re, amp.im), Color::Yellow),
                 ])
             })
             .collect();
@@ -289,16 +301,14 @@ impl App {
             spans
         });
 
-        let max_len = 60usize;
+        let max_items = 6;
         let history_text = if self.gate_history.is_empty() {
             " (no gates applied)".to_string()
+        } else if self.gate_history.len() > max_items {
+            let start = self.gate_history.len() - max_items;
+            format!(" …{}", self.gate_history[start..].join(" → "))
         } else {
-            let joined = self.gate_history.join(" → ");
-            if joined.len() > max_len {
-                format!(" …{}", &joined[(joined.len() - max_len + 1)..])
-            } else {
-                joined
-            }
+            self.gate_history.join(" → ")
         };
         let history_line = Line::from(vec![
             Span::styled(" History:", Color::White),
