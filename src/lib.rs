@@ -14,6 +14,7 @@ pub fn round_state(state: &mut QState) {
 }
 
 /// Given an *n_search* bit number *num*, this builds a search oracle
+/// assumes that there is 1 ancilla bit located at n_search
 fn build_simple_oracle_gates(num: u8, n_search: usize) -> Vec<Gate> {
     let mut gates = Vec::new();
 
@@ -25,15 +26,12 @@ fn build_simple_oracle_gates(num: u8, n_search: usize) -> Vec<Gate> {
 
     gates.push(Gate::CNOT(
         (0..n_search).collect::<Vec<usize>>(),
-        n_search + 1,
+        n_search,
     ));
 
-    gates.push(Gate::Z(n_search + 1));
+    gates.push(Gate::Z(n_search));
 
-    gates.push(Gate::CNOT(
-        (0..n_search).collect::<Vec<usize>>(),
-        n_search + 1,
-    ));
+    gates.push(Gate::CNOT((0..n_search).collect::<Vec<usize>>(), n_search));
 
     for i in (0..n_search).rev() {
         if (num & (1 << (n_search - 1 - i))) == 0 {
@@ -45,20 +43,21 @@ fn build_simple_oracle_gates(num: u8, n_search: usize) -> Vec<Gate> {
 }
 
 fn build_diffusion_gate(n: usize) -> Gate {
-    let hadamard_input = Gate::combined_gate((0..n - 2).map(|i| Gate::H(i)).collect(), n);
-    let x_input = Gate::combined_gate((0..n - 2).map(|i| Gate::X(i)).collect(), n);
+    // assumes that first n-1 qubits are the search, and last qubit is ancilla
+    let hadamard_input = Gate::combined_gate((0..n - 1).map(|i| Gate::H(i)).collect(), n);
+    let x_input = Gate::combined_gate((0..n - 1).map(|i| Gate::X(i)).collect(), n);
 
     Gate::combined_gate(
         vec![
-            Gate::X(n - 2),
-            Gate::H(n - 2),
+            Gate::X(n - 1),
+            Gate::H(n - 1),
             hadamard_input.clone(),
             x_input.clone(),
-            Gate::CNOT((0..n - 2).collect::<Vec<usize>>(), n - 2),
+            Gate::CNOT((0..n - 1).collect::<Vec<usize>>(), n - 1),
             x_input,
             hadamard_input,
-            Gate::H(n - 2),
-            Gate::X(n - 2),
+            Gate::H(n - 1),
+            Gate::X(n - 1),
         ],
         n,
     )
@@ -67,7 +66,7 @@ fn build_diffusion_gate(n: usize) -> Gate {
 /// Quantum search algorithm for the n_search bit number num
 ///     n_search: number of qubits to use for searching
 pub fn qsearch(num: u8, n_search: usize) -> u8 {
-    let n = n_search + 2;
+    let n = n_search + 1; // only 1 ancilla bit needed
     let mut state = QState::from_classical(0, n);
 
     // apply hadamard to all search qubits
