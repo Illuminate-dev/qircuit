@@ -90,6 +90,12 @@ impl QState {
 
         out
     }
+
+    pub fn round_state(&mut self) {
+        self.state
+            .iter_mut()
+            .for_each(|x| x.re = (x.re * 100.0).round() / 100.0);
+    }
 }
 
 #[cfg(test)]
