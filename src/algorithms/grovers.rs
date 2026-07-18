@@ -58,7 +58,7 @@ pub fn qsearch(num: u8, n_search: usize) -> u8 {
 
     // apply hadamard to all search qubits
     for i in 0..n_search {
-        state.apply(Gate::H(i));
+        state.apply(&Gate::H(i));
     }
 
     // optimal number of grover iterations: ⌊π/4 · √(2^n_search)⌋
@@ -69,8 +69,8 @@ pub fn qsearch(num: u8, n_search: usize) -> u8 {
     let diffusion_gate = build_diffusion_gate(n);
 
     for _ in 0..n_iterations {
-        state.apply(oracle_gate.clone());
-        state.apply(diffusion_gate.clone());
+        state.apply(&oracle_gate);
+        state.apply(&diffusion_gate);
     }
 
     (0..n_search)

@@ -11,7 +11,7 @@ fn bench_h_single(c: &mut Criterion) {
         group.bench_with_input(format!("{}q", n), &state, |b, s| {
             b.iter(|| {
                 let mut s = s.clone();
-                s.apply(black_box(Gate::H(0)));
+                s.apply(black_box(&Gate::H(0)));
             });
         });
     }
@@ -27,7 +27,7 @@ fn bench_cnot(c: &mut Criterion) {
         group.bench_with_input(format!("{}q", n), &state, |b, s| {
             b.iter(|| {
                 let mut s = s.clone();
-                s.apply(black_box(Gate::CNOT(vec![0], 1)));
+                s.apply(black_box(&Gate::CNOT(vec![0], 1)));
             });
         });
     }
@@ -40,12 +40,12 @@ fn bench_hadamard_layer(c: &mut Criterion) {
 
     for &n in &[2, 4, 6, 8, 10] {
         let state = QState::new(n);
-        let gates: Vec<Gate> = (0..n).map(|i| Gate::H(i)).collect();
+        let gates: Vec<Gate> = (0..n).map(Gate::H).collect();
         group.bench_with_input(format!("{}q", n), &state, |b, s| {
             b.iter(|| {
                 let mut s = s.clone();
                 for g in &gates {
-                    s.apply(black_box(g.clone()));
+                    s.apply(black_box(g));
                 }
             });
         });
@@ -67,7 +67,7 @@ fn bench_combined_sequence(c: &mut Criterion) {
         group.bench_with_input(format!("{}q", n), &state, |b, s| {
             b.iter(|| {
                 let mut s = s.clone();
-                s.apply(black_box(combined.clone()));
+                s.apply(black_box(&combined));
             });
         });
     }

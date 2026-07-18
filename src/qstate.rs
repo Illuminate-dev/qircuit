@@ -1,4 +1,4 @@
-use ndarray::{linalg::general_mat_vec_mul, Array1};
+use ndarray::Array1;
 use num::complex::Complex64;
 use rand::Rng;
 
@@ -32,16 +32,8 @@ impl QState {
         Self { state: qstate, n }
     }
 
-    pub fn apply(&mut self, gate: Gate) {
-        let mut out = Array1::zeros(self.state.len());
-        general_mat_vec_mul(
-            1.0.into(),
-            &gate.to_matrix(self.n),
-            &self.state,
-            1.0.into(),
-            &mut out,
-        );
-        self.state = out;
+    pub fn apply(&mut self, gate: &Gate) {
+        gate.apply_to(self);
     }
 
     pub fn measure_all(&mut self) -> u8 {
@@ -100,11 +92,9 @@ impl QState {
 
 #[cfg(test)]
 mod tests {
-
     use ndarray::arr1;
 
     use super::*;
-    use crate::round_state;
 
     #[test]
     pub fn test_qstate_new() {
@@ -283,7 +273,7 @@ mod tests {
         for _ in 0..1000 {
             let mut qstate_copy = QState::with_state(qstate.state.clone());
             let result = qstate_copy.measure(0);
-            round_state(&mut qstate_copy);
+            qstate_copy.round_state();
             if result {
                 count_true += 1;
                 assert_eq!(qstate_copy.state[0], Complex64::new(0.0, 0.0));
@@ -316,7 +306,7 @@ mod tests {
         for _ in 0..1000 {
             let mut qstate_copy = QState::with_state(qstate.state.clone());
             let result = qstate_copy.measure(1);
-            round_state(&mut qstate_copy);
+            qstate_copy.round_state();
             if result {
                 count_true += 1;
                 assert_eq!(qstate_copy.state[0], Complex64::new(0.0, 0.0));
@@ -349,7 +339,7 @@ mod tests {
         for _ in 0..1000 {
             let mut qstate_copy = QState::with_state(qstate.state.clone());
             let result = qstate_copy.measure(0);
-            round_state(&mut qstate_copy);
+            qstate_copy.round_state();
             if result {
                 count_true += 1;
                 println!("{:?}", qstate_copy.state);

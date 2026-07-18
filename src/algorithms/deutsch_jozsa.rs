@@ -8,13 +8,13 @@ pub fn deutsch_jozsa(oracle: Gate, n: usize) -> bool {
     let mut state = QState::from_classical(1, n);
 
     // create an equal superposition of everything (H on input and on y)
-    state.apply(Gate::combined_gate((0..n).map(|i| Gate::H(i)).collect(), n));
+    state.apply(&Gate::combined_gate((0..n).map(|i| Gate::H(i)).collect(), n));
 
     // apply the oracle
-    state.apply(oracle);
+    state.apply(&oracle);
 
     // un-hadamard the input
-    state.apply(Gate::combined_gate(
+    state.apply(&Gate::combined_gate(
         (0..n - 1).map(|i| Gate::H(i)).collect(),
         n,
     ));

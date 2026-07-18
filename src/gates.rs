@@ -1,8 +1,10 @@
 use core::f64;
 use std::f64::consts::SQRT_2;
 
-use ndarray::{arr2, linalg::kron, Array2};
+use ndarray::{arr2, linalg::general_mat_vec_mul, linalg::kron, Array1, Array2};
 use num::complex::Complex64;
+
+use crate::QState;
 
 const ONE_SQRT_2: f64 = 1.0 / SQRT_2;
 
@@ -34,6 +36,8 @@ pub enum Gate {
     I,
     /// Classical or gate on quibit .0 and .1 with target qubit .2
     OR(usize, usize, usize),
+    /// Consecutive gates stored as Vec
+    Sequence(Vec<Gate>),
     /// Custom gate with the following matrix
     Custom(Array2<Complex64>),
 }
@@ -55,7 +59,7 @@ impl Gate {
             }
             Gate::I => Self::build_matrix(0, n, &I_MATRIX),
             Gate::OR(a, b, i) => {
-                match Self::combined_gate(
+                match Self::combined_gate_custom(
                     vec![
                         Gate::X(*a),
                         Gate::X(*b),
@@ -70,13 +74,13 @@ impl Gate {
                     _ => unreachable!(),
                 }
             }
+            Gate::Sequence(v) => Self::combined_gate_custom(v.clone(), n).to_matrix(n),
             Gate::Custom(m) => m.clone(),
         }
     }
 
     fn build_matrix(i: usize, n: usize, gate: &[[f64; 2]; 2]) -> Array2<Complex64> {
         let mut m = if i == 0 {
-            // X matrix
             arr2(gate).map(Complex64::from)
         } else {
             arr2(&I_MATRIX).map(Complex64::from)
@@ -127,7 +131,7 @@ impl Gate {
 
     /// contructs a combined gate from a list of gates, applying matrix multiplication in order
     /// from left to right. This means that the first gate in the list is the first to be applied
-    pub fn combined_gate(gates: Vec<Gate>, n: usize) -> Gate {
+    pub fn combined_gate_custom(gates: Vec<Gate>, n: usize) -> Gate {
         if gates.is_empty() {
             return Gate::I;
         }
@@ -139,12 +143,77 @@ impl Gate {
         }
         Self::Custom(m)
     }
+
+    pub fn combined_gate(gates: Vec<Gate>, _n: usize) -> Gate {
+        Gate::Sequence(gates)
+    }
+
+    pub fn apply_to(&self, state: &mut QState) {
+        match self {
+            Gate::X(i) => apply_1q(state, *i, X_MATRIX.map(|r| r.map(Complex64::from))),
+            Gate::Y(i) => apply_1q(state, *i, Y_MATRIX),
+            Gate::Z(i) => apply_1q(state, *i, Z_MATRIX.map(|r| r.map(Complex64::from))),
+            Gate::H(i) => apply_1q(state, *i, H_MATRIX.map(|r| r.map(Complex64::from))),
+            Gate::I => {}
+            Gate::CNOT(controls, target) => apply_cnot(state, controls, *target),
+            Gate::OR(a, b, target) => {
+                state.apply(&Gate::X(*a));
+                state.apply(&Gate::X(*b));
+                state.apply(&Gate::CNOT(vec![*a, *b], *target));
+                state.apply(&Gate::X(*target));
+                state.apply(&Gate::X(*a));
+                state.apply(&Gate::X(*b));
+            }
+            Gate::Sequence(gates) => {
+                for g in gates {
+                    state.apply(g);
+                }
+            }
+            Gate::Custom(_) => {
+                let mut out = Array1::zeros(state.state.len());
+                general_mat_vec_mul(
+                    1.0.into(),
+                    &self.to_matrix(state.n),
+                    &state.state,
+                    1.0.into(),
+                    &mut out,
+                );
+                state.state = out;
+            }
+        }
+    }
+}
+
+fn apply_1q(state: &mut QState, k: usize, gate: [[Complex64; 2]; 2]) {
+    let [[a, b], [c, d]] = gate;
+    let stride = 1 << (state.n - k - 1);
+    let block = stride << 1;
+    let data = state.state.as_slice_mut().unwrap();
+    for chunk in data.chunks_mut(block) {
+        for j in 0..stride {
+            let u = chunk[j];
+            let v = chunk[j + stride];
+            chunk[j] = a * u + b * v;
+            chunk[j + stride] = c * u + d * v;
+        }
+    }
+}
+
+fn apply_cnot(state: &mut QState, controls: &[usize], target: usize) {
+    let target_stride = 1 << (state.n - target - 1);
+    for j in 0..state.state.len() {
+        let all_set = controls.iter().all(|&c| (j >> (state.n - c - 1)) & 1 == 1);
+        if all_set {
+            let pair = j ^ target_stride;
+            if j < pair {
+                state.state.swap(j, pair);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
-
-    use crate::round_state;
     use ndarray::arr1;
     use num::{complex::Complex64, Float};
 
@@ -191,7 +260,7 @@ pub mod tests {
         let mut state =
             QState::with_state(arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]));
         let gate = Gate::Y(0);
-        state.apply(gate);
+        state.apply(&gate);
         assert_eq!(
             state.state,
             arr1(&[Complex64::new(0.0, 0.0), Complex64::new(0.0, 1.0)])
@@ -201,7 +270,7 @@ pub mod tests {
         let mut state =
             QState::with_state(arr1(&[Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)]));
         let gate = Gate::Y(0);
-        state.apply(gate);
+        state.apply(&gate);
         assert_eq!(
             state.state,
             arr1(&[Complex64::new(0.0, -1.0), Complex64::new(0.0, 0.0)])
@@ -215,8 +284,8 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::Y(1));
-        round_state(&mut state);
+        state.apply(&Gate::Y(1));
+        state.round_state();
         assert_eq!(
             state.state,
             arr1(&[
@@ -248,7 +317,7 @@ pub mod tests {
         let mut state =
             QState::with_state(arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]));
         let gate = Gate::Z(0);
-        state.apply(gate);
+        state.apply(&gate);
         assert_eq!(
             state.state,
             arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)])
@@ -258,7 +327,7 @@ pub mod tests {
         let mut state =
             QState::with_state(arr1(&[Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)]));
         let gate = Gate::Z(0);
-        state.apply(gate);
+        state.apply(&gate);
         assert_eq!(
             state.state,
             arr1(&[Complex64::new(0.0, 0.0), Complex64::new(-1.0, 0.0)])
@@ -272,7 +341,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::Z(1));
+        state.apply(&Gate::Z(1));
 
         assert_eq!(
             state.state,
@@ -305,7 +374,7 @@ pub mod tests {
         let mut state =
             QState::with_state(arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]));
         let gate = Gate::X(0);
-        state.apply(gate);
+        state.apply(&gate);
         assert_eq!(
             state.state,
             arr1(&[Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)])
@@ -319,7 +388,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::X(1));
+        state.apply(&Gate::X(1));
 
         assert_eq!(
             state.state,
@@ -352,7 +421,7 @@ pub mod tests {
         let mut state =
             QState::with_state(arr1(&[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]));
         let gate = Gate::H(0);
-        state.apply(gate);
+        state.apply(&gate);
         assert_eq!(
             state.state,
             arr1(&[
@@ -369,8 +438,8 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::H(1));
-        round_state(&mut state);
+        state.apply(&Gate::H(1));
+        state.round_state();
 
         assert_eq!(
             state.state,
@@ -392,7 +461,7 @@ pub mod tests {
             Complex64::new(1.0, 0.0),
         ]));
 
-        state.apply(Gate::CNOT(vec![0], 1));
+        state.apply(&Gate::CNOT(vec![0], 1));
 
         assert_eq!(
             state.state,
@@ -404,7 +473,7 @@ pub mod tests {
             ])
         );
 
-        state.apply(Gate::CNOT(vec![1], 0));
+        state.apply(&Gate::CNOT(vec![1], 0));
 
         assert_eq!(
             state.state,
@@ -427,7 +496,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::CNOT(vec![0, 1], 2));
+        state.apply(&Gate::CNOT(vec![0, 1], 2));
 
         assert_eq!(
             state.state,
@@ -454,7 +523,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::CNOT(vec![0, 1], 2));
+        state.apply(&Gate::CNOT(vec![0, 1], 2));
 
         assert_eq!(
             state.state,
@@ -524,7 +593,7 @@ pub mod tests {
 
         let m = Gate::combined_gate(vec![Gate::X(0), Gate::H(1)], 2);
 
-        state.apply(m);
+        state.apply(&m);
 
         assert_eq!(
             state.state,
@@ -545,7 +614,7 @@ pub mod tests {
 
         let m = Gate::combined_gate(vec![Gate::H(0), Gate::CNOT(vec![0], 1)], 2);
 
-        state.apply(m);
+        state.apply(&m);
 
         assert_eq!(
             state.state,
@@ -564,12 +633,12 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::combined_gate(
+        state.apply(&Gate::combined_gate(
             vec![Gate::H(0), Gate::X(1), Gate::H(1), Gate::CNOT(vec![0], 1)],
             2,
         ));
 
-        round_state(&mut state);
+        state.round_state();
 
         assert_eq!(
             state.state,
@@ -596,7 +665,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::OR(0, 1, 2));
+        state.apply(&Gate::OR(0, 1, 2));
         assert_eq!(
             state.state,
             arr1(&[
@@ -623,7 +692,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::OR(0, 1, 2));
+        state.apply(&Gate::OR(0, 1, 2));
         assert_eq!(
             state.state,
             arr1(&[
@@ -649,7 +718,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::OR(0, 1, 2));
+        state.apply(&Gate::OR(0, 1, 2));
 
         assert_eq!(
             state.state,
@@ -676,7 +745,7 @@ pub mod tests {
             Complex64::new(0.0, 0.0),
         ]));
 
-        state.apply(Gate::OR(0, 1, 2));
+        state.apply(&Gate::OR(0, 1, 2));
 
         assert_eq!(
             state.state,

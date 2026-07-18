@@ -103,13 +103,13 @@ impl App {
                         qubit
                     )
                 };
-                self.qstate.apply(Gate::CNOT(controls, qubit));
+                self.qstate.apply(&Gate::CNOT(controls, qubit));
                 self.gate_history.push(display.clone());
                 self.status = display;
             }
             name => {
                 let gate = (gate_def.gate)(qubit);
-                self.qstate.apply(gate);
+                self.qstate.apply(&gate);
                 let display = format!("{}({})", name, qubit);
                 self.gate_history.push(display.clone());
                 self.status = display;
