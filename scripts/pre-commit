@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "=== Pre-commit: cargo test ==="
+cargo test 2>&1
+
+echo "=== Pre-commit: cargo clippy ==="
+cargo clippy --all-targets -- -D warnings 2>&1

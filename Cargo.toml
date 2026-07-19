@@ -5,7 +5,12 @@ edition = "2021"
 
 [dependencies]
 color-eyre = "0.6.5"
+criterion = "0.8.2"
 ndarray = "0.16.1"
 num = "0.4.3"
 rand = "0.8.5"
 ratatui = "0.30.2"
+
+[[bench]]
+name = "gates_bench"
+harness = false
