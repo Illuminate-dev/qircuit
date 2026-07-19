@@ -190,14 +190,27 @@ fn apply_1q(state: &mut QState, k: usize, gate: [[Complex64; 2]; 2]) {
     let stride = 1 << (state.n - k - 1);
     let block = stride << 1;
     let data = state.state.as_slice_mut().unwrap();
-    data.par_chunks_mut(block).for_each(|chunk| {
-        for j in 0..stride {
-            let u = chunk[j];
-            let v = chunk[j + stride];
-            chunk[j] = a * u + b * v;
-            chunk[j + stride] = c * u + d * v;
+
+    const PAR_THRESHOLD: usize = 1024;
+    if block >= PAR_THRESHOLD {
+        data.par_chunks_mut(block).for_each(|chunk| {
+            for j in 0..stride {
+                let u = chunk[j];
+                let v = chunk[j + stride];
+                chunk[j] = a * u + b * v;
+                chunk[j + stride] = c * u + d * v;
+            }
+        });
+    } else {
+        for chunk in data.chunks_mut(block) {
+            for j in 0..stride {
+                let u = chunk[j];
+                let v = chunk[j + stride];
+                chunk[j] = a * u + b * v;
+                chunk[j + stride] = c * u + d * v;
+            }
         }
-    });
+    }
 }
 
 fn apply_cnot(state: &mut QState, controls: &[usize], target: usize) {
