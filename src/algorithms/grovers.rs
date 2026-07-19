@@ -31,8 +31,8 @@ fn build_simple_oracle_gates(num: u8, n_search: usize) -> Vec<Gate> {
 
 fn build_diffusion_gate(n: usize) -> Gate {
     // assumes that first n-1 qubits are the search, and last qubit is ancilla
-    let hadamard_input = Gate::combined_gate((0..n - 1).map(|i| Gate::H(i)).collect(), n);
-    let x_input = Gate::combined_gate((0..n - 1).map(|i| Gate::X(i)).collect(), n);
+    let hadamard_input = Gate::combined_gate((0..n - 1).map(Gate::H).collect(), n);
+    let x_input = Gate::combined_gate((0..n - 1).map(Gate::X).collect(), n);
 
     Gate::combined_gate(
         vec![
@@ -74,7 +74,7 @@ pub fn qsearch(num: u8, n_search: usize) -> u8 {
     }
 
     (0..n_search)
-        .map(|i| u8::from(state.measure(n_search - 1 - i)) * (2 as u8).pow(i as u32))
+        .map(|i| u8::from(state.measure(n_search - 1 - i)) * 2_u8.pow(i as u32))
         .sum()
 }
 

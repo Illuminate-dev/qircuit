@@ -3,6 +3,7 @@ use std::f64::consts::SQRT_2;
 
 use ndarray::{arr2, linalg::general_mat_vec_mul, linalg::kron, Array1, Array2};
 use num::complex::Complex64;
+use rayon::prelude::*;
 
 use crate::QState;
 
@@ -189,14 +190,14 @@ fn apply_1q(state: &mut QState, k: usize, gate: [[Complex64; 2]; 2]) {
     let stride = 1 << (state.n - k - 1);
     let block = stride << 1;
     let data = state.state.as_slice_mut().unwrap();
-    for chunk in data.chunks_mut(block) {
+    data.par_chunks_mut(block).for_each(|chunk| {
         for j in 0..stride {
             let u = chunk[j];
             let v = chunk[j + stride];
             chunk[j] = a * u + b * v;
             chunk[j + stride] = c * u + d * v;
         }
-    }
+    });
 }
 
 fn apply_cnot(state: &mut QState, controls: &[usize], target: usize) {

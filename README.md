@@ -11,6 +11,7 @@ Qircuit is a Rust library for quantum computing. It provides implementations of 
 - [Installation](#installation)
 - [Usage](#usage)
 - [Features](#features)
+- [Dev Setup](#developer-setup)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
 
@@ -26,6 +27,7 @@ Here's how to use Qircuit:
 2. Simulate quantum algorithms using the provided gates and states.
 
 Example:
+
 ```rust
 use qircuit::{Gate, QState};
 
@@ -56,6 +58,10 @@ fn main() {
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgements
+
+## Developer Setup
+
+`ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`
 
 - Thanks to [Quantum Country](https://quantum.country).
 - Contributor: [Illuminate-dev](https://github.com/Illuminate-dev)
