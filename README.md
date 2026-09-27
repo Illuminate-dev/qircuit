@@ -1,5 +1,10 @@
 # Qircuit
 
+> All the code in this project was human-generated, with the exception of the TUI (most of the code in main.rs)
+> and the rest of this README. Because this project was primarily curiosity-motivated
+> and I had no desire to learn how to create a TUI in Rust, I focused my attention instead to the development of the library,
+> saving myself from a time investment in learning the intricacies of Rust TUI development.
+
 Qircuit is a Rust library for quantum computing. It provides implementations of various quantum gates and quantum states, allowing for the simulation of quantum algorithms.
 
 ## Status
